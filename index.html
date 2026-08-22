@@ -5,20 +5,29 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>404</title>
 	<style>
+		* {
+			box-sizing: border-box;
+			user-select: none;
+			-webkit-user-select: none;
+			-webkit-user-drag: none;
+			-webkit-touch-callout: none;
+		}
+
 		html, body {
 			margin: 0;
 			width: 100%;
 			height: 100%;
 			background: #000;
 			overflow: hidden;
+			overscroll-behavior: none;
 		}
 
-		.background {
+		#background {
 			position: fixed;
 			inset: 0;
 			width: 100%;
 			height: 100%;
-			object-fit: cover;
+			pointer-events: none;
 			opacity: 0;
 			animation: fadeInBg 1.2s ease-out forwards;
 		}
@@ -47,41 +56,131 @@
 	</style>
 </head>
 <body>
-	<img class="background" src="https://i.imgur.com/fkItKiq.png" alt="">
+	<canvas id="background"></canvas>
 	<canvas id="static"></canvas>
 
 	<script>
-		const canvas = document.getElementById("static");
-		const ctx = canvas.getContext("2d");
+		(() => {
+			const background = document.getElementById("background");
+			const backgroundCtx = background.getContext("2d");
+			const staticCanvas = document.getElementById("static");
+			const staticCtx = staticCanvas.getContext("2d");
+			const image = new Image();
 
-		function resize() {
-			canvas.width = Math.max(1, Math.floor(innerWidth / 3));
-			canvas.height = Math.max(1, Math.floor(innerHeight / 3));
-		}
+			let imageReady = false;
 
-		function drawStatic() {
-			const image = ctx.createImageData(canvas.width, canvas.height);
-			const data = image.data;
-
-			for (let i = 0; i < data.length; i += 4) {
-				if (Math.random() < 0.5) {
-					const brightness = 80 + Math.random() * 175;
-					data[i] = brightness;
-					data[i + 1] = Math.random() * 15;
-					data[i + 2] = Math.random() * 10;
-					data[i + 3] = 255;
-				} else {
-					data[i + 3] = 0;
-				}
+			function imageSource() {
+				return atob("aHR0cHM6Ly9pLmltZ3VyLmNvbS9ma0l0S2lxLnBuZw==");
 			}
 
-			ctx.putImageData(image, 0, 0);
-		}
+			function drawBackground() {
+				if (!imageReady) return;
 
-		resize();
-		drawStatic();
-		window.addEventListener("resize", resize);
-		setInterval(drawStatic, 45);
+				const dpr = Math.max(1, window.devicePixelRatio || 1);
+				const width = Math.max(1, Math.floor(innerWidth * dpr));
+				const height = Math.max(1, Math.floor(innerHeight * dpr));
+
+				if (background.width !== width || background.height !== height) {
+					background.width = width;
+					background.height = height;
+				}
+
+				const imageRatio = image.naturalWidth / image.naturalHeight;
+				const canvasRatio = width / height;
+
+				let drawWidth;
+				let drawHeight;
+				let x;
+				let y;
+
+				if (canvasRatio > imageRatio) {
+					drawWidth = width;
+					drawHeight = width / imageRatio;
+					x = 0;
+					y = (height - drawHeight) / 2;
+				} else {
+					drawHeight = height;
+					drawWidth = height * imageRatio;
+					x = (width - drawWidth) / 2;
+					y = 0;
+				}
+
+				backgroundCtx.clearRect(0, 0, width, height);
+				backgroundCtx.drawImage(image, x, y, drawWidth, drawHeight);
+			}
+
+			function resizeStatic() {
+				staticCanvas.width = Math.max(1, Math.floor(innerWidth / 3));
+				staticCanvas.height = Math.max(1, Math.floor(innerHeight / 3));
+			}
+
+			function drawStatic() {
+				const width = staticCanvas.width;
+				const height = staticCanvas.height;
+				const frame = staticCtx.createImageData(width, height);
+				const data = frame.data;
+
+				for (let i = 0; i < data.length; i += 4) {
+					if (Math.random() < 0.5) {
+						const brightness = 80 + Math.random() * 175;
+						data[i] = brightness;
+						data[i + 1] = Math.random() * 15;
+						data[i + 2] = Math.random() * 10;
+						data[i + 3] = 255;
+					} else {
+						data[i] = 0;
+						data[i + 1] = 0;
+						data[i + 2] = 0;
+						data[i + 3] = 0;
+					}
+				}
+
+				staticCtx.putImageData(frame, 0, 0);
+			}
+
+			image.onload = () => {
+				imageReady = true;
+				drawBackground();
+			};
+
+			image.src = imageSource();
+
+			resizeStatic();
+			drawStatic();
+
+			window.addEventListener("resize", () => {
+				drawBackground();
+				resizeStatic();
+				drawStatic();
+			});
+
+			setInterval(drawStatic, 45);
+
+			document.addEventListener("contextmenu", event => {
+				event.preventDefault();
+			}, true);
+
+			document.addEventListener("dragstart", event => {
+				event.preventDefault();
+			}, true);
+
+			document.addEventListener("selectstart", event => {
+				event.preventDefault();
+			}, true);
+
+			document.addEventListener("keydown", event => {
+				const key = event.key.toLowerCase();
+				const blocked =
+					event.key === "F12" ||
+					(event.ctrlKey && (key === "s" || key === "u")) ||
+					(event.ctrlKey && event.shiftKey && (key === "i" || key === "j" || key === "c"));
+
+				if (blocked) {
+					event.preventDefault();
+					event.stopPropagation();
+				}
+			}, true);
+		})();
 	</script>
 </body>
 </html>
